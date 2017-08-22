@@ -1,5 +1,4 @@
 [global_config]
-  enabled_plugins = HostWatch
 [keybindings]
 [layouts]
   [[default]]

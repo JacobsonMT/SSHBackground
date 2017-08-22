@@ -55,14 +55,14 @@ if __name__ == "__main__":
         quit()
 
     # Install plugin
-    plugin = os.path.expanduser("~/.config/terminator/plugins/host_watch.py")
+    plugin = os.path.expanduser("~/.config/terminator/plugins/ssh_background.py")
     if not os.path.exists(os.path.dirname(plugin)):
         try:
             os.makedirs(os.path.dirname(plugin))
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
-    copyfile('host_watch.py', plugin)
+    copyfile('ssh_background.py', plugin)
 
     # Alter config file
 
@@ -70,14 +70,6 @@ if __name__ == "__main__":
 
     if not os.path.exists(config_location):
         copyfile('config_base', config_location)
-
-    profiles = []
-    profile_patterns = ['PAVDESK":"local', 'pavdesk":"local']
-    for file in glob.glob('*.png'):
-        name = file.split(".")[0]
-        profiles += ['  [[{}]]\n'.format(name), '    background_darkness = 0.88\n', '    background_image = {}\n'.format(os.path.abspath(file)), '    background_type = image\n', '    scrollback_lines = 1000\n']
-        profile_patterns.append('{}":"{}'.format(name, name))
-    profiles += ['  [[local]]\n', '    background_image = {}\n'.format(os.path.abspath('local.jpg')), '    background_type = image\n', '    scrollback_lines = 1000\n']
 
     f = open(config_location, "r")
     contents = f.readlines()
@@ -89,18 +81,16 @@ if __name__ == "__main__":
         new_contents.append(line)
         if line.strip().startswith('enabled_plugins'):
             enabled_plugins_found = True
-            new_contents[-1] = new_contents[-1].strip("\n") + ", HostWatch\n"
-        elif line.strip() == '[profiles]':
-            new_contents += profiles
+            new_contents[-1] = new_contents[-1].strip("\n") + ", SSHBackground\n"
         elif line.strip() == '[plugins]':
-            new_contents += ['  [[HostWatch]]\n', 'patterns = "^\w+@(\w+)"', '    fallback_profile = local\n', '    profile_patterns = {}\n'.format(', '.join(profile_patterns))]
+            new_contents += ['  [[SSHBackground]]\n', '    patterns = "^\w+@(\w+)"\n', '    images = ' + os.path.dirname(os.path.realpath(__file__)) + '/*.png\n']
 
     if not enabled_plugins_found:
         for i, line in enumerate(new_contents):
             if line.strip() == '[global_config]':
                 break
 
-        new_contents.insert(i + 1, "  enabled_plugins = HostWatch")
+        new_contents.insert(i + 1, "  enabled_plugins = SSHBackground\n")
 
     f = open(config_location, "w")
     f.writelines(new_contents)
