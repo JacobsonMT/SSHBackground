@@ -143,6 +143,8 @@ class SSHBackground(plugin.Plugin):
         self.update_watches()
 
         hostname = self.get_recent_hostname(terminal)
+        if not hostname:
+            return True
         hostname = hostname if hostname in self.ssh_profiles else self.failback_profile
         if hostname != self.last_profile:
             dbg("setting profile " + hostname)
