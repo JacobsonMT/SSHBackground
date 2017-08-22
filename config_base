@@ -13,3 +13,4 @@
 [profiles]
   [[default]]
     background_image = None
+    background_type = image

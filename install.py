@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import errno
 import glob
 import apt
 import fileinput
@@ -40,6 +41,13 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
+
+def config_exists(config):
+    for line in config:
+        if "SSHBackground" in line:
+            return True
+    return False
+
 if __name__ == "__main__":
     """
     Install simpsons ssh
@@ -47,6 +55,8 @@ if __name__ == "__main__":
 
     if not query_yes_no("Are you sure you want to install Simpsons SSH Backgrounds? This will modify ~/.config/terminator/config!"):
         quit()
+
+    file_dir = os.path.dirname(os.path.realpath(__file__))
 
     cache = apt.Cache()
     cache.open()
@@ -62,7 +72,13 @@ if __name__ == "__main__":
         except OSError as exc:  # Guard against race condition
             if exc.errno != errno.EEXIST:
                 raise
-    copyfile('ssh_background.py', plugin)
+
+    try:
+        os.symlink(file_dir + '/ssh_background.py', plugin)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            os.remove(plugin)
+            os.symlink(file_dir + '/ssh_background.py', plugin)
 
     # Alter config file
 
@@ -75,22 +91,26 @@ if __name__ == "__main__":
     contents = f.readlines()
     f.close()
 
-    new_contents = []
-    enabled_plugins_found = False
+    if config_exists(contents) and not query_yes_no("A previous configuration exists, replace?"):
+        quit()
+
+    # Delete previous plugin configuration
+    flag = False
+    filtered_config = []
     for line in contents:
+        if line.strip() == '[[SSHBackground]]':
+            flag = True
+        elif flag and line.strip().startswith("["):
+            flag = False
+        if not flag:
+            filtered_config.append(line)
+
+    new_contents = []
+    for line in filtered_config:
         new_contents.append(line)
-        if line.strip().startswith('enabled_plugins'):
-            enabled_plugins_found = True
-            new_contents[-1] = new_contents[-1].strip("\n") + ", SSHBackground\n"
-        elif line.strip() == '[plugins]':
-            new_contents += ['  [[SSHBackground]]\n', '    patterns = "^\w+@(\w+)"\n', '    images = ' + os.path.dirname(os.path.realpath(__file__)) + '/*.png\n']
-
-    if not enabled_plugins_found:
-        for i, line in enumerate(new_contents):
-            if line.strip() == '[global_config]':
-                break
-
-        new_contents.insert(i + 1, "  enabled_plugins = SSHBackground\n")
+        if line.strip() == '[plugins]':
+            new_contents += ['  [[SSHBackground]]\n', '    patterns = "^\w+@(\w+)"\n', '    images = ' + file_dir + '/*.png\n']
 
     f = open(config_location, "w")
     f.writelines(new_contents)
+    print "Configuration (" + config_location + ") written. Installation complete."
